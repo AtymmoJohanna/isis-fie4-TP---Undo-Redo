@@ -15,7 +15,61 @@ const temporaire = new Konva.Layer();
 stage.add(dessin);
 stage.add(temporaire);
 
+
+
+class Command {
+    execute() { };
+    undo() { };
+}
+
+class ConcreteCommand extends Command {
+    constructor(line, layer) {
+        super();
+        this.line = line;
+        this.layer = layer;
+    }
+    execute() {
+        this.layer.add(this.line);
+    }
+    undo() {
+        this.line.remove();
+    }
+    redo() {
+
+    }
+
+}
+
+class UndoManager {
+    constructor() {
+        this.undoStack = new Stack();
+        this.redoStack = new Stack()
+    }
+    undo() {
+        const command = this.undoStack.pop();
+        command.undo();
+        this.redoStack.push(command);
+    }
+    execute(command) {
+        command.execute();
+        this.undoStack.push(command);
+    }
+    redo() {
+        const command = this.redoStack.pop();
+        command.execute();
+        this.undoStack.push(command);
+    }
+    canUndo() {
+        return this.undoStack.isEmpty();
+    }
+    canRedo() {
+        return this.redoStack.isEmpty();  
+    }
+}
+
+
 const MAX_POINTS = 10;
+const manager = new UndoManager();
 let polyline // La polyline en cours de construction;
 
 const polylineMachine = createMachine(
@@ -119,7 +173,9 @@ const polylineMachine = createMachine(
                 polyline.points(newPoints);
                 polyline.stroke("black"); // On change la couleur
                 // On sauvegarde la polyline dans la couche de dessin
-                dessin.add(polyline); // On l'ajoute à la couche de dessin
+                //dessin.add(polyline); // On l'ajoute à la couche de dessin
+                const concreteCommand = new ConcreteCommand(polyline, dessin);
+                manager.execute(concreteCommand);
             },
             addPoint: (context, event) => {
                 const pos = stage.getPointerPosition();
@@ -130,6 +186,8 @@ const polylineMachine = createMachine(
             },
             abandon: (context, event) => {
                 polyline.remove();
+
+
             },
             removeLastPoint: (context, event) => {
                 const currentPoints = polyline.points(); // Get the current points of the line
@@ -175,5 +233,28 @@ window.addEventListener("keydown", (event) => {
 // bouton Undo
 const undoButton = document.getElementById("undo");
 undoButton.addEventListener("click", () => {
-    
+    if (manager.canUndo()) {
+        undoButton.disabled = true;
+        
+    } else {
+        undoButton.disabled = false;
+        manager.undo();
+    }
 });
+
+// bouton redo
+const redoButton = document.getElementById("redo");
+redoButton.addEventListener("click", () => {
+    if (manager.canRedo()) {
+        redoButton.disabled = true;
+    } else {
+        redoButton.disabled = false;
+        manager.redo();
+    }
+});
+
+
+
+
+
+
